@@ -1,9 +1,9 @@
 using System.Data;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using EFCustom.Connection;
-using Npgsql;
+
+namespace EFCustom; 
 
 static class Mapper {
     private static MethodInfo getValueMethodInfo = typeof(DataReaderExtensions).GetMethod("GetValue");
@@ -11,14 +11,14 @@ static class Mapper {
         await using var command = connection.CreateCommand(sqlCommand); 
         using var reader = await command.ExecuteReaderAsync();
         var list = new List<T>();
-        Func<IDataReader, T> createItem = Build<T>();
+        Func<IDataReader, T> createItem = InitializerFunc<T>();
         while (reader.Read()) {
             list.Add(createItem(reader));
         }
         return list;
     }
 
-    private static Func<IDataReader, T> Build<T>() {
+    private static Func<IDataReader, T> InitializerFunc<T>() {
         var readerParam = Expression.Parameter(typeof(IDataReader));
         var body = Expression.MemberInit(Expression.New(typeof(T)),
             typeof(T).GetProperties().Select(x => Expression.Bind(x, BuildGetExpression(readerParam, x))));
@@ -31,5 +31,5 @@ static class Mapper {
         return Expression.Call(null, getValueMethodInfo.MakeGenericMethod(propertyType), reader,
             Expression.Constant(prop.Name));
     }
-
+    
 }
